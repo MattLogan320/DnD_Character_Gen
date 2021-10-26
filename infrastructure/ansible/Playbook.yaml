@@ -60,9 +60,13 @@
       mode: "0700"
   - name: insecure registry copy file
     copy:
-      src: ~/DND_CHARACTER_GEN/infrastructure/daemon.json
+      src: ~/DnD_Character_Gen/infrastructure/daemon.json
       dest: /etc/docker/daemon.json
       mode: u=rw,g=,o=
+  - name: docker service
+    service:
+      name: docker
+      state: restarted
   - name: Add jenkins user to docker group
     user:
       name: jenkins
@@ -109,27 +113,7 @@
       docker_container:
         name: registry
         image: registry:2
+        state: started
         ports:
           - "5000:5000"
-
-- name: kubernetes cluster deploy
-  hosts: jenkins
-  become: true
-  tasks:
-    - name: Git clone project
-      git:
-        repo: 'https://github.com/PCMBarber/DnD_Character_Gen.git'
-        dest: /home/jenkins/repo
-    - name: Build docker images
-      docker_compose:
-        project_src: /home/jenkins/repo
-        build: yes
-      remote_user: jenkins
-    - name: Deploy cluster from kubernetes files
-      shell: | 
-        sed -e 's,{{MYSQL_PWD}},'$MYSQL_PWD',g;' -e 's,{{MYSQL_IP}},'$MYSQL_IP',g;' secrets.yaml | kubectl apply -f -
-        kubectl apply -f ~/repo/kubernetes/randapp1.yaml
-        kubectl apply -f ~/repo/kubernetes/randapp2.yaml
-        kubectl apply -f ~/repo/kubernetes/frontend.yaml
-        kubectl apply -f ~/repo/kubernetes/backend.yaml
-      remote_user: jenkins
+        restart: yes

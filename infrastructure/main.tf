@@ -26,18 +26,34 @@ module "vpc" {
   create_database_nat_gateway_route = true
   create_database_subnet_group = true
 
-  default_security_group_name = "pubGroup"
+  manage_default_security_group  = true
+  default_security_group_name    = "pubgroup"
   default_security_group_ingress = [
     {
-      from_port: 22,
-      to_port: 22,
-      cidr_blocks: "0.0.0.0/0"
+      from_port = 22,
+      to_port = 22,
+      cidr_blocks = "0.0.0.0/0"
+      protocol = "tcp"
     }, 
     {
-      from_port: 5000,
-      to_port: 5000,
-      cidr_blocks: "0.0.0.0/0"
-    }
+      from_port = 5000,
+      to_port = 5000,
+      cidr_blocks = "0.0.0.0/0"
+      protocol = "tcp"
+    },
+    {
+      from_port = 8080,
+      to_port = 8080,
+      cidr_blocks = "0.0.0.0/0"
+      protocol = "tcp"
+    },
+  ]
+  default_security_group_egress = [
+    {
+      from_port = 0,
+      to_port = 0,
+      cidr_blocks = "0.0.0.0/0"
+    },
   ]
   tags = {
     "kubernetes.io/cluster/${local.cluster_name}" = "shared"
@@ -74,14 +90,12 @@ module "eks" {
     {
       name                          = "worker-group-1"
       instance_type                 = "t2.small"
-      additional_userdata           = "echo foo bar"
       asg_desired_capacity          = 2
       additional_security_group_ids = [aws_security_group.worker_group_mgmt_one.id]
     },
     {
       name                          = "worker-group-2"
       instance_type                 = "t2.medium"
-      additional_userdata           = "echo foo bar"
       additional_security_group_ids = [aws_security_group.worker_group_mgmt_two.id]
       asg_desired_capacity          = 1
     },
@@ -94,15 +108,14 @@ module "ec2" {
     ami_id            = "ami-096cb92bb3580c759"
     instance_type     = "t2.medium"
     av_zone           = "eu-west-2a"
-    key_name          = "terraforminit"
-    sec_group_ids     = module.eks.cluster_security_group_id
+    key_name          = var.key_name
+    sec_group_ids     = aws_security_group.rds.id
     subnet_group_name = module.vpc.database_subnet_group
     db_password       = var.db_password
     public_net_id     = element(module.vpc.public_subnets, 0)
     nat_ip            = element(module.vpc.nat_public_ips, 0)
 
     depends_on = [
-      module.eks,
       module.vpc
     ]
 }
